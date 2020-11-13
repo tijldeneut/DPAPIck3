@@ -1,6 +1,6 @@
 # DPAPIck3
 OVERVIEW
-========
+--------
 DPAPIck3 is a python3 toolkit to provide a platform-independant implementation
 of Microsoft's cryptography subsytem called DPAPI (Data Protection API).
 
@@ -15,12 +15,9 @@ REQUIREMENTS
 This application has been developped and tested on python 3.9.
 
 pycryptodome is required to provide all the requireds algorithms.
-Furthermore some general stuff:
-* wheel
-* pytz
-* pycryptodome
+Furthermore only python-registry for some scripts
 * python-registry
-* construct==2.5.5-reupload  ## Only required for certain scripts (like vaults)
+* pycryptodome
 
 AUTHOR
 ------
