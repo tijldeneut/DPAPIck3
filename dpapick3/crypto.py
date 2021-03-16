@@ -146,9 +146,9 @@ def CryptSessionKeyType1(masterkey, nonce, hashAlgo, entropy=None, strongPasswor
     #if verifBlob is not None: digest.update(verifBlob)
     #tmp = digest.digest()
     #
-    digest = hashlib.new(hashAlgo.name)
-    digest.update(pad2.encode('latin1'))
-    digest.update(tmp)
+    #digest = hashlib.new(hashAlgo.name)
+    #digest.update(pad2.encode('latin1'))
+    #digest.update(tmp)
     masterkey += ('\x00' * int(hashAlgo.blockSize)).encode()
     pad1 = ''.join(chr(masterkey[i] ^ 0x36) for i in range(int(hashAlgo.blockSize)))
     pad2 = ''.join(chr(masterkey[i] ^ 0x5c) for i in range(int(hashAlgo.blockSize)))
