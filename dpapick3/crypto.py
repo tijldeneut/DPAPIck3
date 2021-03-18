@@ -130,45 +130,29 @@ def CryptSessionKeyType1(masterkey, nonce, hashAlgo, entropy=None, strongPasswor
     :rtype : str
     """
     if len(masterkey) > 20: masterkey = hashlib.sha1(masterkey).digest()
-    
+
     masterkey += ('\x00' * int(hashAlgo.blockSize)).encode()
     pad1 = ''.join(chr(masterkey[i] ^ 0x36) for i in range(int(hashAlgo.blockSize)))
     pad2 = ''.join(chr(masterkey[i] ^ 0x5c) for i in range(int(hashAlgo.blockSize)))
-    
-    ## TODO, after verification remove this
-    #digest = hashlib.new(hashAlgo.name)
-    #digest.update(pad1.encode('latin1'))
-    #digest.update(nonce)
-    #if entropy is not None: digest.update(entropy)
-    #if strongPassword is not None: 
-    #    strongPassword = hashlib.sha1(strongPassword.rstrip("\x00").encode("UTF-16LE")).digest()
-    #    digest.update(strongPassword)
-    #if smartcardsecret is not None: digest.update(smartcardsecret)
-    #if verifBlob is not None: digest.update(verifBlob)
-    #tmp = digest.digest()
-    #
-    #digest = hashlib.new(hashAlgo.name)
-    #digest.update(pad2.encode('latin1'))
-    #digest.update(tmp)
-    
-    digest = hashlib.new(hashAlgo.name)
-    digest.update(pad1.encode('latin1'))
-    digest.update(nonce)
-    if smartcardsecret is not None:
-         digest.update(entropy+smartcardsecret)
-         if verifBlob is not None: digest.update(verifBlob)
-    tmp = digest.digest()
 
-    digest = hashlib.new(hashAlgo.name)
-    digest.update(pad2.encode('latin1'))
-    digest.update(tmp)
-    if entropy is not None and smartcardsecret is None: digest.update(entropy)
+    digest1 = hashlib.new(hashAlgo.name)
+    digest1.update(pad2.encode('latin1'))
+    
+    digest2 = hashlib.new(hashAlgo.name)
+    digest2.update(pad1.encode('latin1'))
+    digest2.update(nonce)
+    if smartcardsecret is not None:
+         digest2.update(entropy + smartcardsecret)
+         if verifBlob is not None: digest2.update(verifBlob)
+    
+    digest1.update(digest2.digest())
+    if entropy is not None and smartcardsecret is None: digest1.update(entropy)
     if strongPassword is not None:
         strongPassword = hashlib.sha1(strongPassword.rstrip("\x00").encode("UTF-16LE")).digest()
-        digest.update(strongPassword)
-    if smartcardsecret is None and verifBlob is not None: digest.update(verifBlob)
+        digest1.update(strongPassword)
+    if smartcardsecret is None and verifBlob is not None: digest1.update(verifBlob)
     
-    return digest.digest()
+    return digest1.digest()
 
 
 def CryptSessionKeyType2(masterkey, nonce, hashAlgo, entropy=None, strongPassword=None, smartcardsecret=None, verifBlob=None):
