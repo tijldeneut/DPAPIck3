@@ -220,6 +220,31 @@ class DomainKey(eater.DataStruct):
             if self.key is not None:
                 self.decrypted = True
 
+    def decryptWithPVKKey(self, pvkKeyFile):
+        def toInt(bHex):
+            return int.from_bytes(bHex, 'little')
+        ## First 6 DWORDs are ignored
+        bData1 = open(pvkKeyFile,'rb').read()[6*4:]
+        ## RSAStruct starts with magic bytes 'RSA2'
+        bRSAStruct = bData1[2*4:]
+        iBitLength1 = int(toInt(bRSAStruct[4:2*4]) / 8)
+        iBitLength2 = int(iBitLength1 / 2)
+        iPubExp = toInt(bRSAStruct[2*4:3*4])
+        ## After 'RSA2', bitlength and Public Exponent: the private key data
+        bPrivKeyStruct = bRSAStruct[3*4:]
+        iModulus = toInt(bPrivKeyStruct[:iBitLength1])
+        iPrime1 = toInt(bPrivKeyStruct[iBitLength1:iBitLength1+iBitLength2])
+        iPrime2 = toInt(bPrivKeyStruct[iBitLength1+iBitLength2:iBitLength1+iBitLength2+iBitLength2])
+        iPrivExp = toInt(bPrivKeyStruct[int(-1*iBitLength1):])
+        rsakey = RSA.construct((iModulus,iPubExp,iPrivExp,iPrime1,iPrime2))
+        cipher = PKCS1_v1_5.new(rsakey)
+        decrypted_data = cipher.decrypt(self.encryptedSecret[::-1],0)
+        if not decrypted_data == 0:
+            self.key = decrypted_data[8:72]
+            if self.key is not None:
+                self.decrypted = True
+        
+
 class MasterKeyFile(eater.DataStruct):
     """This class represents a masterkey file."""
 
@@ -519,7 +544,8 @@ class MasterKeyPool(object):
         for mkl in list(self.keys.values()):
             for mk in mkl:
                 if not mk.decrypted:
-                    mk.domainkey.decryptWithDCKey(privkeyfile)
+                    try: mk.domainkey.decryptWithDCKey(privkeyfile)
+                    except: mk.domainkey.decryptWithPVKKey(privkeyfile)
                     if mk.domainkey.decrypted:
                         mk.decrypted = True
                         mk.masterkey.key = mk.domainkey.key
