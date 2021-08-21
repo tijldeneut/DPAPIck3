@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="dpapick3",
-    version="0.1.5",
+    version="0.1.7",
     author="Tijl Deneut",
     author_email="tijl.deneut@howest.be",
     description="A native implementation of DPAPI",

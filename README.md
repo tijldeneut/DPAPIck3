@@ -1,6 +1,6 @@
 # DPAPIck3
 OVERVIEW
---------
+========
 DPAPIck3 is a python3 toolkit to provide a platform-independant implementation
 of Microsoft's cryptography subsytem called DPAPI (Data Protection API).
 
