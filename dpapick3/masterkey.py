@@ -8,7 +8,7 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2020       Howest. All rights reserved.                   ##
+## Copyright (C) 2021       Howest. All rights reserved.                   ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
 ##  Updated: Photubias <tijl.deneut@howest.be>                             ##
@@ -291,9 +291,7 @@ class MasterKeyFile(eater.DataStruct):
 
     def decryptWithHash(self, userSID, h, alg='sha1'):
         """See MasterKey.decryptWithHash()"""
-        if not self.masterkey.decrypted and alg == 'sha1':
-            self.masterkey.decryptWithHash(userSID, h)
-        if not self.masterkey.decrypted and alg == 'md4':
+        if not self.masterkey.decrypted:
             self.masterkey.decryptWithHash(userSID, h)
             if not self.masterkey.decrypted:
                 self.masterkey.decryptWithHash10(userSID, h)
@@ -313,8 +311,7 @@ class MasterKeyFile(eater.DataStruct):
             #print "Debug: inside decryptWithPassword algo:"+algo
             self.decryptWithHash(userSID, hashlib.new(algo, pwd.encode('UTF-16LE')).digest(), algo)
             
-            if self.decrypted:
-                break
+            if self.decrypted: break
 
     def decryptWithKey(self, pwdhash):
         """See MasterKey.decryptWithKey()"""
