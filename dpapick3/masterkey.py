@@ -306,9 +306,7 @@ class MasterKeyFile(eater.DataStruct):
 
     def decryptWithPassword(self, userSID, pwd):
         """See MasterKey.decryptWithPassword()"""
-        #print "\nDebug: inside decryptWithPassword:"
         for algo in ["sha1", "md4"]:
-            #print "Debug: inside decryptWithPassword algo:"+algo
             self.decryptWithHash(userSID, hashlib.new(algo, pwd.encode('UTF-16LE')).digest(), algo)
             
             if self.decrypted: break
@@ -459,7 +457,6 @@ class MasterKeyPool(object):
 
     def try_credential_hash(self, userSID, pwdhash):
         n = 0
-        #for mkl in self.keys.values():
         for mkl in list(self.keys.values()):
             for mk in mkl:
                 if not mk.decrypted:
@@ -502,7 +499,6 @@ class MasterKeyPool(object):
 
         """
         n = 0
-        #for mkl in self.keys.values():
         for mkl in list(self.keys.values()):
             for mk in mkl:
                 if not mk.decrypted:
@@ -537,7 +533,6 @@ class MasterKeyPool(object):
         try to decrypt domain backup key with DC RSA private key
         """
         n = 0
-        #for mkl in self.keys.values():
         for mkl in list(self.keys.values()):
             for mk in mkl:
                 if not mk.decrypted:

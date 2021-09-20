@@ -137,6 +137,7 @@ class CredhistEntry(eater.DataStruct):
         self.ntlm = cleartxt[self.shaHashLen:self.shaHashLen + self.ntHashLen].rstrip(b'\x00')
         if len(self.ntlm) != 16:
             self.ntlm = None
+            self.pwdhash = None
 
     def decryptWithHash(self, pwdhash):
         """Decrypts this credhist entry with the given user's password hash.
