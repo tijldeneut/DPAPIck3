@@ -72,7 +72,6 @@ class MasterKey(eater.DataStruct):
         Simply computes the corresponding key then calls self.decryptWithKey()
 
         """
-        #print("Debug: Inside decryptwithhash. userSID: "+userSID)
         self.decryptWithKey(crypto.derivePwdHash(pwdhash, userSID))
 
     def decryptWithHash10(self, userSID, pwdhash):
@@ -215,7 +214,7 @@ class DomainKey(eater.DataStruct):
         rsakey = RSA.importKey(open(dcKeyFile, "r").read())
         cipher = PKCS1_v1_5.new(rsakey)
         decrypted_data = cipher.decrypt(binascii.unhexlify(binascii.hexlify(revmk)),0)
-        if decrypted_data > 0:
+        if len(decrypted_data) > 0:
             self.key = decrypted_data[8:72]
             if self.key is not None:
                 self.decrypted = True
@@ -292,9 +291,9 @@ class MasterKeyFile(eater.DataStruct):
     def decryptWithHash(self, userSID, h, alg='sha1'):
         """See MasterKey.decryptWithHash()"""
         if not self.masterkey.decrypted:
-            self.masterkey.decryptWithHash(userSID, h)
+            self.masterkey.decryptWithHash10(userSID, h)
             if not self.masterkey.decrypted:
-                self.masterkey.decryptWithHash10(userSID, h)
+                self.masterkey.decryptWithHash(userSID, h)
         #disabling backup key decrypting for more quickly....
         #if not self.backupkey.decrypted and alg =='sha1':
         #    self.backupkey.decryptWithHash(userSID, h)
