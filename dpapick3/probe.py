@@ -128,7 +128,8 @@ class DPAPIProbe(eater.DataStruct):
         """
         self.preprocess(**k)
         mkeypool.try_credential(sid, password)
-        mks = mkeypool.getMasterKeys(self.dpapiblob.mkguid)
+
+        mks = mkeypool.getMasterKeys(bytes(self.dpapiblob.mkguid,"utf8"))
         for mk in mks:
             if mk.decrypted:
                 self.dpapiblob.decrypt(mk.get_key(), self.entropy, k.get("strong", None))
