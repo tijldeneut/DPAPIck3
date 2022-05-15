@@ -1,23 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#############################################################################
-##                                                                         ##
-## This file is part of DPAPIck                                            ##
-## Windows DPAPI decryption & forensic toolkit                             ##
-##                                                                         ##
-##                                                                         ##
-## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2021       Howest. All rights reserved.                   ##
-##                                                                         ##
-##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
-##  Updated: Photubias <tijl.deneut@howest.be>                             ##
-##                                                                         ##
-## This program is distributed under GPLv3 licence (see LICENCE.txt)       ##
-##                                                                         ##
-#############################################################################
 
 from dpapick3 import probe, blob
+from Crypto.Math.Numbers import Integer
+from Crypto.PublicKey import RSA
 
 try:
     from pyasn1.type import univ, namedtype
@@ -29,11 +16,6 @@ class PrivateKeyBlob(probe.DPAPIProbe):
     """This class represents a RSA private key file as used by Internet Explorer
     and EFS certificates.
     They are located under %APPDATA%\\Microsoft\\Crypto\\RSA
-    If one requires to have the full PKCS#12 certificate, the description field
-    may be used to locate the corresponding certificate file, located under
-    %APPDATA%\\Microsoft\\SystemCertificates\\My\\Certificates
-    This description field is encoded in UTF-16LE format at the beginning of the
-    certificate file.
     """
 
     class RSAHeader(probe.DPAPIProbe):
@@ -181,7 +163,253 @@ class PrivateKeyBlob(probe.DPAPIProbe):
         sigflagslen = data.eat("L")
         flagslen = data.eat("L")
 
-        """Follow 3 if...  Added by user4 for parsing t15-certs and private keys"""
+        if headerlen == 0:
+            headerlen = sigheadlen
+            sigheadlen = 0
+        if privkeylen == 0:
+            privkeylen = sigprivkeylen
+            sigprivkeylen = 0
+        if flagslen == 0:
+            flagslen = sigflagslen
+            sigflagslen = 0
+
+
+        self.description = data.eat("%ds" % self.descrLen)
+        self.description = self.description.strip(b'\x00')
+        self.crc = data.eat("%ds" % self.crcLen)
+
+        # Signature key comes first
+        self.sigHeader = None
+        if sigheadlen > 0:
+            self.sigHeader = self.RSAHeader()
+            self.sigHeader.parse(data.eat_sub(sigheadlen))
+
+        self.sigPrivateKey = None
+        if sigprivkeylen > 0:
+            self.sigPrivateKey = self.RSAPrivKey()
+            self.sigPrivateKey.parse(data.eat_sub(sigprivkeylen))
+
+        self.sigFlags = None
+        if sigflagslen > 0:
+            self.sigFlags = self.RSAFlags()
+            self.sigFlags.parse(data.eat_sub(sigflagslen))
+
+        # Then export key
+        self.header = None
+        if headerlen > 0:
+            self.header = self.RSAHeader()
+            self.header.parse(data.eat_sub(headerlen))
+
+        self.privateKey = None
+        if privkeylen > 0:
+            self.privateKey = self.RSAPrivKey()
+            self.privateKey.parse(data.eat_sub(privkeylen))
+
+        self.flags = None
+        if flagslen > 0:
+            self.flags = self.RSAFlags()
+            self.flags.parse(data.eat_sub(flagslen))
+
+    def try_decrypt_with_hash(self, h, mkp, sid, **k):
+        if not self.flags:
+            return False
+        if not self.privateKey:
+            return False
+        if self.flags.try_decrypt_with_hash(h, mkp, sid, **k):
+            self.privateKey.entropy = self.flags.cleartext
+            return self.privateKey.try_decrypt_with_hash(h, mkp, sid, **k)
+        return False
+
+    def try_decrypt_with_password(self, password, mkp, sid, **k):
+        if not self.flags:
+            return False
+        if not self.privateKey:
+            return False
+        if self.flags.try_decrypt_with_password(password, mkp, sid, **k):
+            self.privateKey.entropy = self.flags.cleartext
+            return self.privateKey.try_decrypt_with_password(password, mkp, sid, **k)
+        return False
+
+    def export(self):
+        """This functions encodes the RSA key pair in PEM format. Simply calls the same function on the key blob."""
+        if self.privateKey:
+            return self.privateKey.export()
+        return ''
+
+    def __repr__(self):
+        s = ["Microsoft Certificate",
+             "\tdescr: %s" % self.description]
+        if self.header is not None:
+            s.append("+  %r" % self.header)
+        if self.privateKey is not None:
+            s.append("+  %r" % self.privateKey)
+        if self.flags is not None:
+            s.append("+  %r" % self.flags)
+        return "\n".join(s)
+
+class BcryptPrivateKeyBlob(probe.DPAPIProbe):
+    """This class represents a Bcrypt RSA private key blob file 
+    They are located under %APPDATA%\\Microsoft\\Crypto\\Keys
+    """
+
+    class RSAHeader(probe.DPAPIProbe):
+        """This subclass represents the header + modulus, beginning with the
+        magic value "RSA1"
+        """
+        def parse(self, data):
+            self.magic = data.eat("4s")  # RSA1
+            self.len1 = data.eat("L")  # e.g. 0x108 (264)
+            self.bitlength = data.eat("L")  # e.g. 0x400 (1024) or 0x800 (2048)
+            self.unk = data.eat("L")  # e.g. 0x7F (127) or 0xFF (255)
+            self.pubexp = data.eat("L")  # e.g. 0x00010001 (65537)
+            self.data = data.eat("%is" % self.len1)
+            self.data = self.data.strip(b'\x00') # strip NULL-bytes
+
+        def __repr__(self):
+            s = ["RSA header",
+                 "\tmagic     = %s" % self.magic,
+                 "\tbitlength = %d" % self.bitlength,
+                 "\tunknown   = %x" % self.unk,
+                 "\tpubexp    = %d" % self.pubexp,
+                 "\tdata      = %s" % self.data.hex()]
+            return "\n".join(s)
+
+    class RSAKey(probe.DPAPIProbe):
+        """This subclass represents the RSA privatekey BLOB, beginning with the
+        magic value "RSA2"
+        """
+
+        class RSAKeyASN1(univ.Sequence):
+            """subclass for ASN.1 sequence representing the RSA key pair.
+            Mainly useful to export the key to OpenSSL
+            """
+            componentType = namedtype.NamedTypes(
+                namedtype.NamedType('version', univ.Integer()),
+                namedtype.NamedType('modulus', univ.Integer()),
+                namedtype.NamedType('pubexpo', univ.Integer()),
+                # namedtype.NamedType('privexpo', univ.Integer()),
+                namedtype.NamedType('prime1', univ.Integer()),
+                namedtype.NamedType('prime2', univ.Integer()),
+                # namedtype.NamedType('exponent1', univ.Integer()),
+                # namedtype.NamedType('exponent2', univ.Integer()),
+                # namedtype.NamedType('coefficient', univ.Integer())
+            )
+
+        def parse(self, data):
+            self.magic = data.eat("4s")  # RSA2
+            byte_len = data.eat("L")
+            pub_exp_len = data.eat("L")
+            modulus_len = data.eat("L")
+            p_len = data.eat("L")
+            q_len = data.eat("L")
+            self.pubexp = data.eat("%is" % pub_exp_len)
+            self.modulus = data.eat("%is" % modulus_len)
+            self.prime1 = data.eat("%is" % p_len)
+            self.prime2 = data.eat("%is" % q_len)
+
+            # self.privExponent = self.pubexp
+            # self.exponent1 = self.pubexp
+            # self.exponent2 = self.pubexp
+            # self.coefficient = self.pubexp
+
+            self.asn1 = self.RSAKeyASN1()
+            # ll = lambda x: long(x[::-1].hex(), 16)
+            ll = lambda x: int(x[::-1].hex(), 16)
+            self.asn1.setComponentByName('version', 0)
+            self.asn1.setComponentByName('modulus', ll(self.modulus))
+            self.asn1.setComponentByName('pubexpo', ll(self.pubexp))
+            # self.asn1.setComponentByName('privexpo', ll(self.privExponent))
+            self.asn1.setComponentByName('prime1', ll(self.prime1))
+            self.asn1.setComponentByName('prime2', ll(self.prime2))
+            # self.asn1.setComponentByName('exponent1', ll(self.exponent1))
+            # self.asn1.setComponentByName('exponent2', ll(self.exponent2))
+            # self.asn1.setComponentByName('coefficient', ll(self.coefficient))
+
+        def __repr__(self):
+            s = ["RSA key pair",
+                 "\tPublic exponent = %d" % self.pubexp,
+                 "\tModulus (n)     = %s" % self.modulus.hex(),
+                 "\tPrime 1 (p)     = %s" % self.prime1.hex(),
+                 "\tPrime 2 (q)     = %s" % self.prime2.hex()]
+            # "\tExponent 1      = %s" % self.exponent1.hex(),
+            # "\tExponent 2      = %s" % self.exponent2.hex(),
+            # "\tCoefficient     = %s" % self.coefficient.hex(),
+            # "\tPrivate exponent= %s" % self.privExponent.hex()]
+            return "\n".join(s)
+
+        def export(self):
+            """This functions exports the RSA key pair in PEM format"""
+            import base64
+            s = ['-----BEGIN RSA PRIVATE KEY-----']
+            text = base64.b64encode(encoder.encode(self.asn1)).decode()
+            s.append(text.rstrip('\n'))
+            s.append('-----END RSA PRIVATE KEY-----')
+            return '\n'.join(s)
+
+        def export_pkcs12(self):
+            n = Integer.from_bytes(self.modulus)
+            p = Integer.from_bytes(self.prime1)
+            q = Integer.from_bytes(self.prime2)
+            e = Integer.from_bytes(self.pubexp)
+            lcm = (p - 1).lcm(q - 1)
+            d = e.inverse(lcm)
+            rsa_components = (int(n), int(e), int(d))
+            return RSA.construct(rsa_components).export_key()
+
+    class RSAPrivKey(probe.DPAPIProbe):
+        """Internal use. This represents the DPAPI BLOB containing the RSA
+        key pair"""
+        def parse(self, data):
+            self.dpapiblob = blob.DPAPIBlob(data.remain())
+
+        def postprocess(self, **k):
+            self.clearKey = BcryptPrivateKeyBlob.RSAKey(self.dpapiblob.cleartext)
+
+        def export(self):
+            if self.clearKey is None:
+                return ""
+            return self.clearKey.export()
+
+        def __repr__(self):
+            s = ["RSA Private Key Blob"]
+            if self.entropy:
+                s.append("entropy = %s" % self.entropy.hex())
+            if hasattr(self, "strong"):
+                s.append("strong = %s" % self.strong.hex())
+            if self.dpapiblob.decrypted:
+                s.append(repr(self.clearKey))
+            s.append(repr(self.dpapiblob))
+            return "\n".join(s)
+
+    class RSAFlags(probe.DPAPIProbe):
+        """This subclass represents the export flags BLOB"""
+        def parse(self, data):
+            self.dpapiblob = blob.DPAPIBlob(data.remain())
+
+        def preprocess(self, **k):
+            self.entropy = b"Hj1diQ6kpUx7VC4m\0"
+            if hasattr(k, 'strong'):
+                self.strong = k['strong']
+
+        def __repr__(self):
+            s = ["Export Flags"]
+            s.append("entropy = %s" % self.entropy)
+            if hasattr(self, "strong"):
+                s.append("strong = %s" % self.strong.encode("hex"))
+            s.append("%r" % self.dpapiblob)
+            return "\n".join(s)
+
+    def parse(self, data):
+        self.version = data.eat("L")
+        data.eat("L")  # NULL
+        self.descrLen = data.eat("L")
+        sigheadlen, sigprivkeylen = data.eat("2L")
+        headerlen = data.eat("L")
+        privkeylen = data.eat("L")
+        self.crcLen = data.eat("L")
+        sigflagslen = data.eat("L")
+        flagslen = data.eat("L")
+
         if headerlen == 0:
             headerlen = sigheadlen
             sigheadlen = 0
@@ -323,5 +551,3 @@ class Cert(probe.DPAPIProbe):
                 if isinstance(p, str) or isinstance(p, bytes): rv.append('     - %s' % p.hex())
                 else: rv.append(str(p))
         return '\n'.join(rv)
-
-# vim:ts=4:expandtab:sw=4
