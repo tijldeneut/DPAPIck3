@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="dpapick3",
-    version="0.3.0",
+    version="0.4.0",
     author="Tijl Deneut",
     author_email="tijl.deneut@howest.be",
     description="A native implementation of DPAPI",
@@ -22,12 +22,14 @@ setuptools.setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.2',
     install_requires=[
         'pycryptodome',
-        'python-registry'
+        'python-registry',
+        'pyasn1'
     ]
 )
