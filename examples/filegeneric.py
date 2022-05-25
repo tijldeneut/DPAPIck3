@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument("--hash", required=False, metavar="PASSWORD", dest="hash")
     parser.add_argument("--inputfile", required=False, metavar="FILE", dest="inputfile")
     parser.add_argument("--base64file", required=False, metavar="FILE", dest="b64file")
-    parser.add_argument("--syskey", required=False, metavar="PASSWORD", dest="syskey", help="DPAPI_SYSTEM string. 01000000...")
+    parser.add_argument("--syskey", required=False, metavar="PASSWORD", dest="syskey", help="DPAPI_SYSTEM string. 01000000..., run lsasecrets.py")
     parser.add_argument("--pkey", required=False, help="Private domain KEY", dest="pkey")
     parser.add_argument("--entropy", required=False, help="Decrypt entropy, 0xaabb... or Base64", dest="entropy")
     parser.add_argument("--debug", required=False, action="store_true",dest="debug")
