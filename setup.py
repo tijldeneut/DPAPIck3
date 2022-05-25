@@ -8,7 +8,7 @@ setuptools.setup(
     name="dpapick3",
     version="0.4.0",
     author="Tijl Deneut",
-    author_email="tijl.deneut@howest.be",
+    author_email="deneut_tijl@hotmail.com",
     description="A native implementation of DPAPI",
     long_description=long_description,
     long_description_content_type="text/markdown",
