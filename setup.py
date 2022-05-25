@@ -14,6 +14,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/tijldeneut/dpapick3",
     packages=setuptools.find_packages(),
+    include_package_data=True,
+    zip_safe=False,
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
