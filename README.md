@@ -18,9 +18,10 @@ pycryptodome is required to provide all the requireds algorithms.
 Furthermore only python-registry for some scripts
 * python-registry
 * pycryptodome
+* pyasn1
 
 AUTHOR
 ------
 DPAPIck3 is written by Jean-Michel Picod (jean-michel.picod@cassidian.com) with the help from Ivan Fontarensky (ivan.fontarensky@cassidian.com)  
 who work for the Cyber Security Center of Cassidian, an EADS company, and Elie Bursztein (dpapi@elie.im)  
-And adjusted for Python3 and Windows 10 by Tijl Deneut
+And adjusted for Python3 and Windows 10 by Tijl Deneut (deneut_tijl@hotmail.com)
