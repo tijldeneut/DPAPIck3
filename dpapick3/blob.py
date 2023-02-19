@@ -92,7 +92,12 @@ class DPAPIBlob(eater.DataStruct):
         for algo in [crypto.CryptSessionKeyType1, crypto.CryptSessionKeyType2]:
             sessionkey = algo(masterkey, self.salt, self.hashAlgo, entropy=entropy, smartcardsecret=smartCardSecret, strongPassword=strongPassword)
             key = crypto.CryptDeriveKey(sessionkey, self.cipherAlgo, self.hashAlgo)
-            cipher = self.cipherAlgo.module.new(key[:int(self.cipherAlgo.keyLength)],
+            #RC4 is a stream cipher, and so we need to call module without the mode parameter
+            if self.cipherAlgo == "RC4":
+              cipher =  self.cipherAlgo.module.new(key[:int(self.cipherAlgo.keyLength)],
+                                                  IV=b'\x00' * int(self.cipherAlgo.ivLength))
+            else:
+              cipher = self.cipherAlgo.module.new(key[:int(self.cipherAlgo.keyLength)],
                                                 mode=self.cipherAlgo.module.MODE_CBC,
                                                 IV=b'\x00' * int(self.cipherAlgo.ivLength))
             self.cleartext = cipher.decrypt(self.cipherText)
