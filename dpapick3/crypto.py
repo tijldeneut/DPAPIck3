@@ -102,6 +102,7 @@ CryptoAlgo.add_algo(0x660f, name="AES-192", keyLength=192, IVLength=128, blockLe
 CryptoAlgo.add_algo(0x6610, name="AES-256", keyLength=256, IVLength=128, blockLength=128, module=AES)
 CryptoAlgo.add_algo(0x6601, name="DES", keyLength=64, IVLength=64, blockLength=64, module=DES,
                     keyFixup=des_set_odd_parity)
+CryptoAlgo.add_algo(0x6801, name="RC4", keyLength=40, IVLength=128, blockLength=1, module=ARC4)
 
 CryptoAlgo.add_algo(0x8009, name="HMAC", digestLength=160, blockLength=512)
 
