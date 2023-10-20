@@ -1,14 +1,25 @@
-#!/usr/bin/env python3
-# vim:ts=4:expandtab:sw=4
-from dpapick3 import probe
-from dpapick3 import blob
-from dpapick3 import masterkey
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 
-import argparse
-import base64
-import hashlib
+#############################################################################
+##                                                                         ##
+## This file is part of DPAPIck3                                           ##
+## Windows DPAPI decryption & forensic toolkit                             ##
+##                                                                         ##
+##                                                                         ##
+## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
+## Copyright (C) 2023       Insecurity. All rights reserved.               ##
+##                                                                         ##
+##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
+##  Updated: Photubias <info@insecurity.be>                                ##
+##                                                                         ##
+## This program is distributed under GPLv3 licence (see LICENCE.txt)       ##
+##                                                                         ##
+#############################################################################
 
-import binascii
+from dpapick3 import probe, blob, masterkey
+
+import argparse, base64, binascii
 
 class GenericDecryptor(probe.DPAPIProbe):
 
@@ -43,7 +54,6 @@ if __name__ == '__main__':
 
     options = parser.parse_args()
 
-    #print mkp
     entropy = None
     decrn = 0
     if options.entropy:
@@ -74,7 +84,6 @@ if __name__ == '__main__':
                 for mkl in mkp.keys.values(): #mkl - list with mk, mkbackup, mkdomain
                     for mk in mkl:
                         print(mk.guid)
-                        #print mk.masterkey
 
     if options.masterkeydir and options.password and options.sid:
         mkp = masterkey.MasterKeyPool()
@@ -88,7 +97,6 @@ if __name__ == '__main__':
         options.hash = binascii.unhexlify(options.hash)
         decrn = mkp.try_credential_hash(options.sid, options.hash)
         print("Decrypted masterkeys: " + str(decrn))
-        #print mkp
 
     if options.masterkeydir and options.syskey:
         mkp = masterkey.MasterKeyPool()
@@ -123,3 +131,5 @@ if __name__ == '__main__':
             if probe.try_decrypt_with_password(options.password, mkp, options.sid, entropy=entropy):
                 print("Decrypted clear: %s" % probe.cleartext)
                 print("Decrypted hex: %s" % binascii.hexlify(probe.cleartext))
+
+# vim:ts=4:expandtab:sw=4

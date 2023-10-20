@@ -1,17 +1,17 @@
-#!/usr/bin/env python3
-# vim:ts=4:expandtab:sw=4
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 
 #############################################################################
 ##                                                                         ##
-## This file is part of DPAPIck                                            ##
+## This file is part of DPAPIck3                                           ##
 ## Windows DPAPI decryption & forensic toolkit                             ##
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2022       Deneut. All rights reserved.                   ##
+## Copyright (C) 2023       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
-##  Updated: Photubias <tijl.deneut@howest.be>                             ##
+##  Updated: Photubias <info@insecurity.be>                                ##
 ##                                                                         ##
 ## This program is distributed under GPLv3 licence (see LICENCE.txt)       ##
 ##                                                                         ##
@@ -63,3 +63,4 @@ if __name__ == "__main__":
                     ## Timestamp
                     print(('\t'.join([i, k, datetime.utcfromtimestamp(v).isoformat(' ')])))
 
+# vim:ts=4:expandtab:sw=4
