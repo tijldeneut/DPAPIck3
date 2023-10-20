@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 #############################################################################
@@ -8,21 +8,19 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2021       Howest. All rights reserved.                   ##
+## Copyright (C) 2023       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
-##  Updated: Photubias <tijl.deneut@howest.be>                             ##
+##  Updated: Photubias <info@insecurity.be>                                ##
 ##                                                                         ##
 ## This program is distributed under GPLv3 licence (see LICENCE.txt)       ##
 ##                                                                         ##
 #############################################################################
 
-import hashlib, os, re, binascii
+import hashlib, os, re, binascii, pickle
 from collections import defaultdict
-import pickle
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
-import struct
 import dpapick3.crypto as crypto
 import dpapick3.eater as eater
 import dpapick3.credhist as credhist

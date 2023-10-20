@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 #############################################################################
@@ -8,20 +8,17 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2020       Howest. All rights reserved.                   ##
+## Copyright (C) 2023       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
-##  Updated: Photubias <tijl.deneut@howest.be>                             ##
+##  Updated: Photubias <info@insecurity.be>                                ##
 ##                                                                         ##
 ## This program is distributed under GPLv3 licence (see LICENCE.txt)       ##
 ##                                                                         ##
 #############################################################################
 
 import array, hashlib, hmac, struct
-from Crypto.Cipher import AES
-from Crypto.Cipher import ARC4
-from Crypto.Cipher import DES
-from Crypto.Cipher import DES3
+from Crypto.Cipher import AES, ARC4, DES, DES3
 
 class CryptoAlgo(object):
     """This class is used to wrap Microsoft algorithm IDs with M2Crypto"""

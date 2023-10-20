@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 #############################################################################
@@ -8,10 +8,10 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2021       Howest. All rights reserved.                   ##
+## Copyright (C) 2023       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
-##  Updated: Photubias <tijl.deneut@howest.be>                             ##
+##  Updated: Photubias <info@insecurity.be>                                ##
 ##                                                                         ##
 ## This program is distributed under GPLv3 licence (see LICENCE.txt)       ##
 ##                                                                         ##
@@ -97,7 +97,7 @@ class DPAPIProbe(eater.DataStruct):
                     return True
         return False
 
-    def try_decrypt_with_key(self, h, key, sid, **k):
+    def try_decrypt_with_key(self, key, **k):
         """Decryption loop for general blobs with given decrypted key.
             This function will call preprocess() first, then tries to decrypt.
 
