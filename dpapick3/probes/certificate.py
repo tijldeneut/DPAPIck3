@@ -1,6 +1,21 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+#############################################################################
+##                                                                         ##
+## This file is part of DPAPIck                                            ##
+## Windows DPAPI decryption & forensic toolkit                             ##
+##                                                                         ##
+##                                                                         ##
+## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
+## Copyright (C) 2023       Insecurity. All rights reserved.               ##
+##                                                                         ##
+##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
+##  Updated: Photubias <info@insecurity.be>                                ##
+##                                                                         ##
+## This program is distributed under GPLv3 licence (see LICENCE.txt)       ##
+##                                                                         ##
+#############################################################################
 
 from dpapick3 import probe, blob
 from Crypto.Math.Numbers import Integer
@@ -114,14 +129,23 @@ class PrivateKeyBlob(probe.DPAPIProbe):
         key pair"""
         def parse(self, data):
             self.dpapiblob = blob.DPAPIBlob(data.remain())
+            self.dpapiblob.guids = [self.dpapiblob.mkguid.encode()]
 
         def postprocess(self, **k):
             self.clearKey = PrivateKeyBlob.RSAKey(self.dpapiblob.cleartext)
 
         def export(self):
-            if self.clearKey is None:
-                return ""
+            if self.clearKey is None: return ''
             return self.clearKey.export()
+        
+        def rsa(self):
+            n = Integer.from_bytes(self.clearKey.modulus[::-1])
+            p = Integer.from_bytes(self.clearKey.prime1[::-1])
+            q = Integer.from_bytes(self.clearKey.prime2[::-1])
+            e = Integer(self.clearKey.pubexp)
+            lcm = (p - 1).lcm(q - 1)
+            d = e.inverse(lcm)
+            return RSA.construct((int(n), int(e), int(d), int(p), int(q)))
 
         def __repr__(self):
             s = ["RSA Private Key Blob"]
@@ -138,6 +162,7 @@ class PrivateKeyBlob(probe.DPAPIProbe):
         """This subclass represents the export flags BLOB"""
         def parse(self, data):
             self.dpapiblob = blob.DPAPIBlob(data.remain())
+            self.dpapiblob.guids = [self.dpapiblob.mkguid.encode()]
 
         def preprocess(self, **k):
             self.entropy = b"Hj1diQ6kpUx7VC4m\0"
@@ -228,6 +253,14 @@ class PrivateKeyBlob(probe.DPAPIProbe):
         if self.flags.try_decrypt_with_password(password, mkp, sid, **k):
             self.privateKey.entropy = self.flags.cleartext
             return self.privateKey.try_decrypt_with_password(password, mkp, sid, **k)
+        return False
+    
+    def try_decrypt_with_key(self, key, **k):
+        if not self.flags: return False
+        if not self.privateKey: return False
+        if self.flags.try_decrypt_with_key(key, **k):
+            self.privateKey.entropy = self.flags.cleartext
+            return self.privateKey.try_decrypt_with_key(key, **k)
         return False
 
     def export(self):
@@ -476,6 +509,14 @@ class BcryptPrivateKeyBlob(probe.DPAPIProbe):
             self.privateKey.entropy = self.flags.cleartext
             return self.privateKey.try_decrypt_with_password(password, mkp, sid, **k)
         return False
+    
+    def try_decrypt_with_key(self, key, **k):
+        if not self.flags: return False
+        if not self.privateKey: return False
+        if self.flags.try_decrypt_with_key(key, **k):
+            self.privateKey.entropy = self.flags.cleartext
+            return self.privateKey.try_decrypt_with_key(key, **k)
+        return False
 
     def export(self):
         """This functions encodes the RSA key pair in PEM format. Simply calls the same function on the key blob."""
@@ -551,3 +592,5 @@ class Cert(probe.DPAPIProbe):
                 if isinstance(p, str) or isinstance(p, bytes): rv.append('     - %s' % p.hex())
                 else: rv.append(str(p))
         return '\n'.join(rv)
+
+# vim:ts=4:expandtab:sw=4
