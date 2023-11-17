@@ -532,7 +532,7 @@ class MasterKeyPool(object):
         n = 0
         for mkl in list(self.keys.values()):
             for mk in mkl:
-                if not mk.decrypted:
+                if not mk.decrypted and mk.domainkey:
                     try: mk.domainkey.decryptWithDCKey(privkeyfile)
                     except: mk.domainkey.decryptWithPVKKey(privkeyfile)
                     if mk.domainkey.decrypted:
