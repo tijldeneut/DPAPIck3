@@ -8,7 +8,7 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2023       Insecurity. All rights reserved.               ##
+## Copyright (C) 2024       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
 ##  Updated: Photubias <info@insecurity.be>                                ##
@@ -108,6 +108,7 @@ class Regedit(object):
                 for j in i.subkeys():
                     self.lsa_secrets[i.name()][j.name()] = j.value('(default)').value()
         for k, v in list(self.lsa_secrets.items()):
+            if v == {}: continue
             for s in ['CurrVal', 'OldVal']:
                 if v[s] != b'':
                     if self.policy['value'] > 1.09:
