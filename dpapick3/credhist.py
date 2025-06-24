@@ -160,29 +160,31 @@ class CredhistEntry(eater.DataStruct):
 
             Unless you know what you are doing, you shall not call this function
             yourself. Instead, use the method provided by CredHistPool object.
+            
+            Hashcat mode 1000 for NTLM and mode 170 for the SHA1 pwdhash
         """
         rv = []
         if self.pwdhash is not None:
-            rv.append("%s:$dynamic_1400$%s" % (self.userSID, self.pwdhash.encode('hex')))
+            rv.append("%s:$dynamic_1400$%s" % (self.userSID, self.pwdhash.hex()))
         if self.ntlm is not None:
-            rv.append("%s:$NT$%s" % (self.userSID, self.ntlm.encode('hex')))
+            rv.append("%s:$NT$%s" % (self.userSID, self.ntlm.hex()))
         return "\n".join(rv)
 
     def __repr__(self):
         s = ["CredHist entry",
-             "\trevision   = %x\n" % self.revision,
-             "\thash       = %r" % self.hashAlgo,
-             "\trounds     = %i" % self.rounds,
-             "\tcipher     = %r" % self.cipherAlgo,
-             "\tshaHashLen = %i" % self.shaHashLen,
-             "\tntHashLen  = %i" % self.ntHashLen,
-             "\tuserSID    = %s" % self.userSID,
-             "\tguid       = %s" % self.guid,
-             "\tiv         = %s" % self.iv.hex()]
+             "\trevision    = %x" % self.revision,
+             "\thash        = %r" % self.hashAlgo,
+             "\trounds      = %i" % self.rounds,
+             "\tcipher      = %r" % self.cipherAlgo,
+             "\tshaHashLen  = %i" % self.shaHashLen,
+             "\tntHashLen   = %i" % self.ntHashLen,
+             "\tuserSID     = %s" % self.userSID,
+             "\tguid        = %s" % self.guid,
+             "\tiv          = %s" % self.iv.hex()]
         if self.pwdhash is not None:
-            s.append("\tpwdhash  = %s" % self.pwdhash.hex())
+            s.append("\t[+] pwdhash = %s" % self.pwdhash.hex())
         if self.ntlm is not None:
-            s.append("\tNTLM     = %s" % self.ntlm.hex())
+            s.append("\t[+] NTLM    = %s" % self.ntlm.hex())
         return "\n".join(s)
 
 
@@ -227,12 +229,11 @@ class CredHistFile(eater.DataStruct):
 
     def decryptWithHash(self, h):
         """Try to decrypt each entry with the given hash"""
-        if self.valid:
-            return
+        if self.valid: return
         curhash = h
         for entry in self.entries_list:
             entry.decryptWithHash(curhash)
-            curhash = entry.pwdhash
+            if entry.pwdhash != None: curhash = entry.pwdhash
 
     def decryptWithPassword(self, pwd):
         """Try to decrypt each entry with the given password.
@@ -249,7 +250,6 @@ class CredHistFile(eater.DataStruct):
 
             If validonly is set to True, will only extract CREDHIST entries
             that are known to have sucessfully decrypted a masterkey.
-
         """
         if validonly and not self.valid:
             return ""

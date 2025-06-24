@@ -305,10 +305,8 @@ def getDigestmod(digest):
     return Dmod.get(digest,hashlib.sha1)
 
 def derivePwdHash(pwdhash, userSID, digest='sha1'):
-    """Internal use. Computes the encryption key from a user's password hash"""
-    #return hmac.new(pwdhash, (userSID + "\0").encode("UTF-16LE"), digestmod=lambda: hashlib.new(digest)).digest()
+    """Internal use. Computes the encryption key from a user's password hash and SID"""
     return hmac.new(pwdhash, (userSID + "\0").encode("UTF-16LE"), digestmod=getDigestmod(digest)).digest()
-
 
 def dataDecrypt(cipherAlgo, hashAlgo, raw, encKey, iv, rounds):
     """Internal use. Decrypts data stored in DPAPI structures."""
@@ -321,15 +319,12 @@ def dataDecrypt(cipherAlgo, hashAlgo, raw, encKey, iv, rounds):
     cleartxt = cipher.decrypt(raw)
     return cleartxt
 
-
 def DPAPIHmac(hashAlgo, pwdhash, hmacSalt, value):
     """Internal function used to compute HMACs of DPAPI structures"""
     hname = {"HMAC": "sha1"}.get(hashAlgo.name, hashAlgo.name)
-    #encKey = hmac.new(pwdhash, digestmod=lambda: hashlib.new(hname))
     encKey = hmac.new(pwdhash, digestmod=getDigestmod(hname))
     encKey.update(hmacSalt)
     encKey = encKey.digest()
-    #rv = hmac.new(encKey, digestmod=lambda: hashlib.new(hname))
     rv = hmac.new(encKey, digestmod=getDigestmod(hname))
     rv.update(value)
     return rv.digest()
