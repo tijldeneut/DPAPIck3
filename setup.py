@@ -8,7 +8,7 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2024       Insecurity. All rights reserved.               ##
+## Copyright (C) 2023, 2025 Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
 ##  Updated: Photubias <info@insecurity.be>                                ##
@@ -23,7 +23,7 @@ long_description = open('README.md', 'r').read()
 
 setuptools.setup(
     name = 'dpapick3',
-    version = '0.5.1',
+    version = '0.6.0',
     author = 'Tijl Deneut',
     author_email = 'info@insecurity.be',
     description = 'A native implementation of DPAPI',
@@ -41,6 +41,8 @@ setuptools.setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
