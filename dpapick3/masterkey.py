@@ -497,7 +497,7 @@ class MasterKeyPool(object):
                             # process CREDHIST
                             self.creds[userSID].decryptWithPassword(password)
                             for cred in self.creds[userSID].entries_list:
-                                mk.decryptWithHash(userSID, cred.pwdhash)
+                                if cred.pwdhash: mk.decryptWithHash(userSID, cred.pwdhash)
                                 if cred.ntlm is not None and not mk.decrypted:
                                     mk.decryptWithHash(userSID, cred.ntlm)
                                 if mk.decrypted:

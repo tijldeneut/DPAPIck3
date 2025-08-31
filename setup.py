@@ -23,7 +23,7 @@ long_description = open('README.md', 'r').read()
 
 setuptools.setup(
     name = 'dpapick3',
-    version = '0.7.0',
+    version = '0.7.1',
     author = 'Tijl Deneut',
     author_email = 'info@insecurity.be',
     description = 'A native implementation of DPAPI',
