@@ -8,7 +8,7 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2023       Insecurity. All rights reserved.               ##
+## Copyright (C) 2025       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
 ##  Updated: Photubias <info@insecurity.be>                                ##
@@ -17,8 +17,9 @@
 ##                                                                         ##
 #############################################################################
 
-import array, hashlib, hmac, struct
+import array, hmac, struct
 from Crypto.Cipher import AES, ARC4, DES, DES3
+from Crypto.Hash import MD5, SHA1, SHA224, SHA256, SHA384,SHA512
 
 class CryptoAlgo(object):
     """This class is used to wrap Microsoft algorithm IDs with M2Crypto"""
@@ -63,7 +64,7 @@ class CryptoAlgo(object):
             return key
 
     def __repr__(self):
-        return "%s [%#x]" % (self.algo.name, self.algnum)
+        return '%s [%#x]' % (self.algo.name, self.algnum)
 
 
 def des_set_odd_parity(key):
@@ -84,31 +85,29 @@ def des_set_odd_parity(key):
             218, 220, 220, 223, 223, 224, 224, 227, 227, 229, 229, 230, 230, 233,
             233, 234, 234, 236, 236, 239, 239, 241, 241, 242, 242, 244, 244, 247,
             247, 248, 248, 251, 251, 253, 253, 254, 254]
-    tmp = array.array("B")
+    tmp = array.array('B')
     tmp.fromstring(key)
     for i, v in enumerate(tmp):
         tmp[i] = _lut[v]
     return tmp.tostring()
 
 
-CryptoAlgo.add_algo(0x6603, name="DES3", keyLength=192, IVLength=64, blockLength=64, module=DES3,
-                    keyFixup=des_set_odd_parity)
-CryptoAlgo.add_algo(0x6611, name="AES", keyLength=128, IVLength=128, blockLength=128, module=AES)
-CryptoAlgo.add_algo(0x660e, name="AES-128", keyLength=128, IVLength=128, blockLength=128, module=AES)
-CryptoAlgo.add_algo(0x660f, name="AES-192", keyLength=192, IVLength=128, blockLength=128, module=AES)
-CryptoAlgo.add_algo(0x6610, name="AES-256", keyLength=256, IVLength=128, blockLength=128, module=AES)
-CryptoAlgo.add_algo(0x6601, name="DES", keyLength=64, IVLength=64, blockLength=64, module=DES,
-                    keyFixup=des_set_odd_parity)
-CryptoAlgo.add_algo(0x6801, name="RC4", keyLength=40, IVLength=128, blockLength=1, module=ARC4)
+CryptoAlgo.add_algo(0x6603, name='DES3', keyLength=192, IVLength=64, blockLength=64, module=DES3, keyFixup=des_set_odd_parity)
+CryptoAlgo.add_algo(0x6611, name='AES', keyLength=128, IVLength=128, blockLength=128, module=AES)
+CryptoAlgo.add_algo(0x660e, name='AES-128', keyLength=128, IVLength=128, blockLength=128, module=AES)
+CryptoAlgo.add_algo(0x660f, name='AES-192', keyLength=192, IVLength=128, blockLength=128, module=AES)
+CryptoAlgo.add_algo(0x6610, name='AES-256', keyLength=256, IVLength=128, blockLength=128, module=AES)
+CryptoAlgo.add_algo(0x6601, name='DES', keyLength=64, IVLength=64, blockLength=64, module=DES, keyFixup=des_set_odd_parity)
+CryptoAlgo.add_algo(0x6801, name='RC4', keyLength=40, IVLength=128, blockLength=1, module=ARC4)
 
-CryptoAlgo.add_algo(0x8009, name="HMAC", digestLength=160, blockLength=512)
+CryptoAlgo.add_algo(0x8009, name='HMAC', digestLength=160, blockLength=512)
 
-CryptoAlgo.add_algo(0x8003, name="md5", digestLength=128, blockLength=512)
+CryptoAlgo.add_algo(0x8003, name='md5', digestLength=128, blockLength=512)
 
-CryptoAlgo.add_algo(0x8004, name="sha1", digestLength=160, blockLength=512)
-CryptoAlgo.add_algo(0x800c, name="sha256", digestLength=256, blockLength=512)
-CryptoAlgo.add_algo(0x800d, name="sha384", digestLength=384, blockLength=1024)
-CryptoAlgo.add_algo(0x800e, name="sha512", digestLength=512, blockLength=1024)
+CryptoAlgo.add_algo(0x8004, name='sha1', digestLength=160, blockLength=512)
+CryptoAlgo.add_algo(0x800c, name='sha256', digestLength=256, blockLength=512)
+CryptoAlgo.add_algo(0x800d, name='sha384', digestLength=384, blockLength=1024)
+CryptoAlgo.add_algo(0x800e, name='sha512', digestLength=512, blockLength=1024)
 
 
 def CryptSessionKeyType1(masterkey, nonce, hashAlgo, entropy=None, strongPassword=None, smartcardsecret=None, verifBlob=None):
@@ -127,17 +126,16 @@ def CryptSessionKeyType1(masterkey, nonce, hashAlgo, entropy=None, strongPasswor
     :returns: decryption key
     :rtype : str
     """
-    if len(masterkey) > 20: masterkey = hashlib.sha1(masterkey).digest()
+    if len(masterkey) > 20: masterkey = SHA1.new(masterkey).digest()
 
     masterkey += ('\x00' * int(hashAlgo.blockSize)).encode()
     pad1 = ''.join(chr(masterkey[i] ^ 0x36) for i in range(int(hashAlgo.blockSize)))
     pad2 = ''.join(chr(masterkey[i] ^ 0x5c) for i in range(int(hashAlgo.blockSize)))
 
-    digest1 = hashlib.new(hashAlgo.name)
-    digest1.update(pad2.encode('latin1'))
+    oHashClass = getattr(__import__('Crypto.Hash', fromlist=[hashAlgo.name.upper()]), hashAlgo.name.upper())
+    digest1 = oHashClass.new(pad2.encode('latin1'))
     
-    digest2 = hashlib.new(hashAlgo.name)
-    digest2.update(pad1.encode('latin1'))
+    digest2 = oHashClass.new(pad1.encode('latin1'))
     digest2.update(nonce)
     if smartcardsecret is not None:
          digest2.update(entropy + smartcardsecret)
@@ -146,7 +144,7 @@ def CryptSessionKeyType1(masterkey, nonce, hashAlgo, entropy=None, strongPasswor
     digest1.update(digest2.digest())
     if entropy is not None and smartcardsecret is None: digest1.update(entropy)
     if strongPassword is not None:
-        strongPassword = hashlib.sha1(strongPassword.rstrip("\x00").encode("UTF-16LE")).digest()
+        strongPassword = SHA1.new(strongPassword.rstrip('\x00').encode('UTF-16LE')).digest()
         digest1.update(strongPassword)
     if smartcardsecret is None and verifBlob is not None: digest1.update(verifBlob)
     
@@ -168,40 +166,36 @@ def CryptSessionKeyType2(masterkey, nonce, hashAlgo, entropy=None, strongPasswor
     :returns: decryption key
     :rtype : str
     """
-    if len(masterkey) > 20: masterkey = hashlib.sha1(masterkey).digest()
+    if len(masterkey) > 20: masterkey = SHA1.new(masterkey).digest()
 
     digest = hmac.new(masterkey, digestmod=getDigestmod(hashAlgo.name))
     digest.update(nonce)
-    if entropy is not None:
-        digest.update(entropy)
+    if entropy is not None: digest.update(entropy)
     if strongPassword is not None:
-        strongPassword = hashlib.sha512(strongPassword.rstrip("\x00").encode("UTF-16LE")).digest()
+        strongPassword = SHA512.new(strongPassword.rstrip('\x00').encode('UTF-16LE')).digest()
         digest.update(strongPassword)
-    elif verifBlob is not None:
-        digest.update(verifBlob)
+    elif verifBlob is not None: digest.update(verifBlob)
     return digest.digest()
 
 
 def CryptDeriveKey(h, cipherAlgo, hashAlgo):
     """Internal use. Mimics the corresponding native Microsoft function"""
-    if len(h) > hashAlgo.blockSize:
-        h = hashlib.new(hashAlgo.name, h).digest()
-    if len(h) >= cipherAlgo.keyLength:
-        return h
+    oHashClass = getattr(__import__('Crypto.Hash', fromlist=[hashAlgo.name.upper()]), hashAlgo.name.upper())
+    if len(h) > hashAlgo.blockSize: h = oHashClass.new(h).digest()
+    if len(h) >= cipherAlgo.keyLength: return h
     h += ('\x00' * int(hashAlgo.blockSize)).encode()
     pad1 = ''.join(chr(h[i] ^ 0x36) for i in range(int(hashAlgo.blockSize)))
     pad2 = ''.join(chr(h[i] ^ 0x5c) for i in range(int(hashAlgo.blockSize)))
-    k = hashlib.new(hashAlgo.name, pad1.encode('latin1')).digest() + hashlib.new(hashAlgo.name, pad2.encode('latin1')).digest()
+    k = oHashClass.new(pad1.encode('latin1')).digest() + oHashClass.new(pad2.encode('latin1')).digest()
     k = cipherAlgo.do_fixup_key(k)
     return k
 
 
 def decrypt_lsa_key_nt5(lsakey, syskey):
     """This function decrypts the LSA key using the syskey"""
-    dg = hashlib.md5()
+    dg = MD5.new()
     dg.update(syskey)
-    for i in range(1000):
-        dg.update(lsakey[60:76])
+    for i in range(1000): dg.update(lsakey[60:76])
     arcfour = ARC4.new(dg.digest())
     deskey = arcfour.decrypt(lsakey[12:60])
     return [deskey[16 * x:16 * (x + 1)] for x in range(3)]
@@ -209,22 +203,21 @@ def decrypt_lsa_key_nt5(lsakey, syskey):
 
 def decrypt_lsa_key_nt6(lsakey, syskey):
     """This function decrypts the LSA keys using the syskey"""
-    dg = hashlib.sha256()
+    dg = SHA256.new()
     dg.update(syskey)
-    for i in range(1000):
-        dg.update(lsakey[28:60])
+    for i in range(1000): dg.update(lsakey[28:60])
     keys = AES.new(dg.digest(),AES.MODE_ECB).decrypt(lsakey[60:])
-    size = struct.unpack_from("<L", keys)[0]
+    size = struct.unpack_from('<L', keys)[0]
     keys = keys[16:16 + size]
-    currentkey = "%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x" % struct.unpack("<L2H8B", keys[4:20])
-    nb = struct.unpack("<L", keys[24:28])[0]
+    currentkey = '%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x' % struct.unpack('<L2H8B', keys[4:20])
+    nb = struct.unpack('<L', keys[24:28])[0]
     off = 28
     kd = {}
     for i in range(nb):
-        g = "%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x" % struct.unpack("<L2H8B", keys[off:off + 16])
-        t, l = struct.unpack_from("<2L", keys[off + 16:])
+        g = '%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x' % struct.unpack('<L2H8B', keys[off:off + 16])
+        t, l = struct.unpack_from('<2L', keys[off + 16:])
         k = keys[off + 24:off + 24 + l]
-        kd[g] = {"type": t, "key": k}
+        kd[g] = {'type': t, 'key': k}
         off += 24 + l
     return (currentkey, kd)
 
@@ -255,22 +248,20 @@ def SystemFunction005(secret, key):
         j += 7
         if len(key[j:j + 7]) < 7:
             j = len(key[j:j + 7])
-    dec_data_len = struct.unpack("<L", decrypted_data[:4])[0]
+    dec_data_len = struct.unpack('<L', decrypted_data[:4])[0]
     return decrypted_data[8:8 + dec_data_len]
 
 
 def decrypt_lsa_secret(secret, lsa_keys):
     """This function replaces SystemFunction005 for newer Windows"""
-    keyid = "%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x" % struct.unpack("<L2H8B", secret[4:20])
-    if keyid not in lsa_keys:
-        return None
-    algo = struct.unpack("<L", secret[20:24])[0]
-    dg = hashlib.sha256()
+    keyid = '%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x' % struct.unpack('<L2H8B', secret[4:20])
+    if keyid not in lsa_keys: return None
+    algo = struct.unpack('<L', secret[20:24])[0]
+    dg = SHA256.new()
     dg.update(lsa_keys[keyid]['key'])
-    for i in range(1000):
-        dg.update(secret[28:60])
+    for i in range(1000): dg.update(secret[28:60])
     clear = AES.new(dg.digest(),AES.MODE_ECB).decrypt(secret[60:])
-    size = struct.unpack_from("<L", clear)[0]
+    size = struct.unpack_from('<L', clear)[0]
     return clear[16:16 + size]
 
 
@@ -281,7 +272,7 @@ def pbkdf2(passphrase, salt, keylen, iterations, digest='sha1'):
     buff = b''
     i = 1
     while len(buff) < keylen:
-        U = salt + struct.pack("!L", i)
+        U = salt + struct.pack('!L', i)
         i += 1
         derived = hmac.new(passphrase, U, digestmod=getDigestmod(digest)).digest()
         for r in range(iterations - 1):
@@ -296,21 +287,21 @@ def pbkdf2(passphrase, salt, keylen, iterations, digest='sha1'):
 
 def getDigestmod(digest):
     Dmod = {
-        'sha1':hashlib.sha1,
-        'sha224':hashlib.sha224,
-        'sha256':hashlib.sha256,
-        'sha384':hashlib.sha384,
-        'sha512':hashlib.sha512
+        'sha1':SHA1.new(),
+        'sha224':SHA224.new(),
+        'sha256':SHA256.new(),
+        'sha384':SHA384.new(),
+        'sha512':SHA512.new()
     }
-    return Dmod.get(digest,hashlib.sha1)
+    return Dmod.get(digest,SHA1.new())
 
 def derivePwdHash(pwdhash, userSID, digest='sha1'):
     """Internal use. Computes the encryption key from a user's password hash and SID"""
-    return hmac.new(pwdhash, (userSID + "\0").encode("UTF-16LE"), digestmod=getDigestmod(digest)).digest()
+    return hmac.new(pwdhash, (userSID + '\0').encode('UTF-16LE'), digestmod=getDigestmod(digest)).digest()
 
 def dataDecrypt(cipherAlgo, hashAlgo, raw, encKey, iv, rounds):
     """Internal use. Decrypts data stored in DPAPI structures."""
-    hname = {"HMAC": "sha1"}.get(hashAlgo.name, hashAlgo.name)
+    hname = {'HMAC': 'sha1'}.get(hashAlgo.name, hashAlgo.name)
     derived = pbkdf2(encKey, iv, int(cipherAlgo.keyLength + cipherAlgo.ivLength), rounds, hname)
     key, iv = derived[:int(cipherAlgo.keyLength)], derived[int(cipherAlgo.keyLength):]
     key = key[:int(cipherAlgo.keyLength)]
@@ -321,7 +312,7 @@ def dataDecrypt(cipherAlgo, hashAlgo, raw, encKey, iv, rounds):
 
 def DPAPIHmac(hashAlgo, pwdhash, hmacSalt, value):
     """Internal function used to compute HMACs of DPAPI structures"""
-    hname = {"HMAC": "sha1"}.get(hashAlgo.name, hashAlgo.name)
+    hname = {'HMAC': 'sha1'}.get(hashAlgo.name, hashAlgo.name)
     encKey = hmac.new(pwdhash, digestmod=getDigestmod(hname))
     encKey.update(hmacSalt)
     encKey = encKey.digest()

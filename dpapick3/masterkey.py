@@ -8,7 +8,7 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2023       Insecurity. All rights reserved.               ##
+## Copyright (C) 2025       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
 ##  Updated: Photubias <info@insecurity.be>                                ##
@@ -17,10 +17,12 @@
 ##                                                                         ##
 #############################################################################
 
-import hashlib, os, re, binascii, pickle
+import os, re, binascii, pickle
 from collections import defaultdict
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Hash import MD4, SHA1, SHA256
 import dpapick3.crypto as crypto
 import dpapick3.eater as eater
 import dpapick3.credhist as credhist
@@ -46,29 +48,28 @@ class MasterKey(eater.DataStruct):
 
     def __getstate__(self):
         d = dict(self.__dict__)
-        for k in ["cipherAlgo", "hashAlgo"]:
+        for k in ['cipherAlgo', 'hashAlgo']:
             if k in d:
                 d[k] = d[k].algnum
         return d
 
     def __setstate__(self, d):
-        for k in ["cipherAlgo", "hashAlgo"]:
+        for k in ['cipherAlgo', 'hashAlgo']:
             if k in d:
                 d[k] = crypto.CryptoAlgo(d[k])
         self.__dict__.update(d)
 
     def parse(self, data):
-        self.version = data.eat("L")
-        self.iv = data.eat("16s")
-        self.rounds = data.eat("L")
-        self.hashAlgo = crypto.CryptoAlgo(data.eat("L"))
-        self.cipherAlgo = crypto.CryptoAlgo(data.eat("L"))
+        self.version = data.eat('L')
+        self.iv = data.eat('16s')
+        self.rounds = data.eat('L')
+        self.hashAlgo = crypto.CryptoAlgo(data.eat('L'))
+        self.cipherAlgo = crypto.CryptoAlgo(data.eat('L'))
         self.ciphertext = data.remain()
 
     def decryptWithHash(self, userSID, pwdhash):
         """Decrypts the masterkey with the given user's hash and SID.
         Simply computes the corresponding key then calls self.decryptWithKey()
-
         """
         self.decryptWithKey(crypto.derivePwdHash(pwdhash, userSID))
 
@@ -78,9 +79,9 @@ class MasterKey(eater.DataStruct):
         """
         #print("Debug: Inside decryptwithhash10. userSID: "+userSID)
         #print("Debug: Inside decryptwithhash. pwdhash: "+binascii.hexlify(pwdhash))
-        pwdhash1 = hashlib.pbkdf2_hmac('sha256', pwdhash, userSID.encode("UTF-16LE"), 10000)
+        #pwdhash1 = PBKDF2(pwdhash, userSID.encode('UTF-16LE'), dkLen=32, count=10000, hmac_hash_module=SHA256)
         #print("Debug: Inside decryptwithhash. pwdhash1:"+binascii.hexlify(pwdhash1))
-        pwdhash2 = hashlib.pbkdf2_hmac('sha256', pwdhash1, userSID.encode("UTF-16LE"), 1)[0:16]
+        pwdhash2 = PBKDF2(pwdhash, userSID.encode('UTF-16LE'), dkLen=32, count=1, hmac_hash_module=SHA256)[:16]
         #print("Debug: Inside decryptwithhash. pwdhash2:"+binascii.hexlify(pwdhash2))
         
         #print("Debug: Inside decryptwithhash. Derived hash:" + binascii.hexlify(derivedkey))
@@ -89,12 +90,12 @@ class MasterKey(eater.DataStruct):
     def decryptWithPassword(self, userSID, pwd):
         """Decrypts the masterkey with the given user's password and SID.
         Simply computes the corresponding key, then calls self.decryptWithKey()
-
         """
-        for algo in ["sha1", "md4"]:
-            self.decryptWithKey(crypto.derivePwdHash(hashlib.new(algo, pwd.encode("UTF-16LE")).digest(), userSID))
-            if self.decrypted:
-                break
+        for algo in ['SHA1', 'MD4']:
+            ## Dynamically import a class (from Crypto.Hash import MD4, SHA1)
+            oHashClass = getattr(__import__('Crypto.Hash', fromlist=[algo]), algo)
+            self.decryptWithKey(crypto.derivePwdHash(oHashClass.new(pwd.encode('UTF-16LE')).digest(), userSID))
+            if self.decrypted: break
 
     def setKeyHash(self, h):
         assert(len(h) == 20)
@@ -105,7 +106,7 @@ class MasterKey(eater.DataStruct):
         assert len(data) == 64
         self.decrypted = True
         self.key = data
-        self.key_hash = hashlib.sha1(data).digest()
+        self.key_hash = SHA1.new(data).digest()
 
     def decryptWithKey(self, pwdhash):
         """Decrypts the masterkey with the given encryption key. This function
@@ -114,65 +115,59 @@ class MasterKey(eater.DataStruct):
 
         Note that, once successfully decrypted, the masterkey will not be
         decrypted anymore; this function will simply return.
-
         """
-        if self.decrypted:
-            return
-        if not self.ciphertext:
-            return
+        if self.decrypted: return
+        if not self.ciphertext: return
         # Compute encryption key
-        cleartxt = crypto.dataDecrypt(self.cipherAlgo, self.hashAlgo, self.ciphertext,
-                                      pwdhash, self.iv, self.rounds)
+        cleartxt = crypto.dataDecrypt(self.cipherAlgo, self.hashAlgo, self.ciphertext, pwdhash, self.iv, self.rounds)
         self.key = cleartxt[-64:]
         self.hmacSalt = cleartxt[:16]
         self.hmac = cleartxt[16:16 + int(self.hashAlgo.digestLength)]
         self.hmacComputed = crypto.DPAPIHmac(self.hashAlgo, pwdhash, self.hmacSalt, self.key)
         self.decrypted = self.hmac == self.hmacComputed
-        if self.decrypted:
-            self.key_hash = hashlib.sha1(self.key).digest()
+        if self.decrypted: self.key_hash = SHA1.new(self.key).digest()
 
     def __repr__(self):
-        s = ["Masterkey block"]
+        s = ['Masterkey block']
         if self.cipherAlgo is not None:
-            s.append("\tcipher algo  = %s" % repr(self.cipherAlgo))
+            s.append('\tcipher algo  = %s' % repr(self.cipherAlgo))
         if self.hashAlgo is not None:
-            s.append("\thash algo    = %s" % repr(self.hashAlgo))
+            s.append('\thash algo    = %s' % repr(self.hashAlgo))
         if self.rounds is not None:
-            s.append("\trounds       = %i" % self.rounds)
+            s.append('\trounds       = %i' % self.rounds)
         if self.iv is not None:
-            s.append("\tIV           = %s" % self.iv.hex())
+            s.append('\tIV           = %s' % self.iv.hex())
         if self.key is not None:
-            s.append("\tkey          = %s" % self.key.hex())
+            s.append('\tkey          = %s' % self.key.hex())
         if self.hmacSalt is not None:
-            s.append("\thmacSalt     = %s" % self.hmacSalt.hex())
+            s.append('\thmacSalt     = %s' % self.hmacSalt.hex())
         if self.hmac is not None:
-            s.append("\thmac         = %s" % self.hmac.hex())
+            s.append('\thmac         = %s' % self.hmac.hex())
         if self.hmacComputed is not None:
-            s.append("\thmacComputed = %s" % self.hmacComputed.hex())
+            s.append('\thmacComputed = %s' % self.hmacComputed.hex())
         if self.key_hash is not None:
-            s.append("\tkey hash     = %s" % self.key_hash.hex())
+            s.append('\tkey hash     = %s' % self.key_hash.hex())
         if self.ciphertext is not None:
-            s.append("\tciphertext   = %s" % self.ciphertext.hex())
-        return "\n".join(s)
+            s.append('\tciphertext   = %s' % self.ciphertext.hex())
+        return '\n'.join(s)
 
 
 class CredHist(eater.DataStruct):
     """This class represents a Credhist block contained in the MasterKeyFile"""
-
     def __init__(self, raw=None):
         self.version = None
         self.guid = None
         eater.DataStruct.__init__(self, raw)
 
     def parse(self, data):
-        self.version = data.eat("L")
-        self.guid = "%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x" % data.eat("L2H8B")
+        self.version = data.eat('L')
+        self.guid = '%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x' % data.eat('L2H8B')
 
     def __repr__(self):
-        s = ["CredHist block",
-             "\tversion = %d" % self.version,
-             "\tguid    = %s" % self.guid]
-        return "\n".join(s)
+        s = ['CredHist block',
+             '\tversion = %d' % self.version,
+             '\tguid    = %s' % self.guid]
+        return '\n'.join(s)
 
 
 class DomainKey(eater.DataStruct):
@@ -192,24 +187,24 @@ class DomainKey(eater.DataStruct):
         eater.DataStruct.__init__(self, raw)
 
     def parse(self, data):
-        self.version = data.eat("L")
-        self.secretLen = data.eat("L")
-        self.accesscheckLen = data.eat("L")
-        self.guidKey = "%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x" % data.eat("L2H8B")  #data.eat("16s")
-        self.encryptedSecret = data.eat("%us" % self.secretLen)
-        self.accessCheck = data.eat("%us" % self.accesscheckLen)
+        self.version = data.eat('L')
+        self.secretLen = data.eat('L')
+        self.accesscheckLen = data.eat('L')
+        self.guidKey = '%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x' % data.eat('L2H8B')  #data.eat("16s")
+        self.encryptedSecret = data.eat('%us' % self.secretLen)
+        self.accessCheck = data.eat('%us' % self.accesscheckLen)
 
     def __repr__(self):
-        s = ["DomainKey block",
-             "\tversion     = %x" % self.version,
-             "\tguid        = %s" % self.guidKey,
-             "\tsecret      = %s" % self.encryptedSecret.hex(),
-             "\taccessCheck = %s" % self.accessCheck.hex()]
-        return "\n".join(s)
+        s = ['DomainKey block',
+             '\tversion     = %x' % self.version,
+             '\tguid        = %s' % self.guidKey,
+             '\tsecret      = %s' % self.encryptedSecret.hex(),
+             '\taccessCheck = %s' % self.accessCheck.hex()]
+        return '\n'.join(s)
 
     def decryptWithDCKey(self, dcKeyFile):
         tmpdata = bytearray(self.encryptedSecret); tmpdata.reverse(); revmk=tmpdata
-        rsakey = RSA.importKey(open(dcKeyFile, "r").read())
+        rsakey = RSA.importKey(open(dcKeyFile, 'r').read())
         cipher = PKCS1_v1_5.new(rsakey)
         decrypted_data = cipher.decrypt(binascii.unhexlify(binascii.hexlify(revmk)),0)
         if len(decrypted_data) > 0:
@@ -218,8 +213,7 @@ class DomainKey(eater.DataStruct):
                 self.decrypted = True
 
     def decryptWithPVKKey(self, pvkKeyFile):
-        def toInt(bHex):
-            return int.from_bytes(bHex, 'little')
+        def toInt(bHex): return int.from_bytes(bHex, 'little')
         ## First 6 DWORDs are ignored
         bData1 = open(pvkKeyFile,'rb').read()[6*4:]
         ## RSAStruct starts with magic bytes 'RSA2'
@@ -238,13 +232,11 @@ class DomainKey(eater.DataStruct):
         decrypted_data = cipher.decrypt(self.encryptedSecret[::-1],0)
         if not decrypted_data == 0:
             self.key = decrypted_data[8:72]
-            if self.key is not None:
-                self.decrypted = True
+            if self.key is not None: self.decrypted = True
         
 
 class MasterKeyFile(eater.DataStruct):
     """This class represents a masterkey file."""
-
     def __init__(self, raw=None):
         self.masterkey = None
         self.backupkey = None
@@ -258,15 +250,15 @@ class MasterKeyFile(eater.DataStruct):
         eater.DataStruct.__init__(self, raw)
 
     def parse(self, data):
-        self.version = data.eat("L")
-        data.eat("2L")
-        self.guid = data.eat("72s").decode("UTF-16LE").encode("utf-8")
-        data.eat("2L")
-        self.policy = data.eat("L")
-        self.masterkeyLen = data.eat("Q")
-        self.backupkeyLen = data.eat("Q")
-        self.credhistLen = data.eat("Q")
-        self.domainkeyLen = data.eat("Q")
+        self.version = data.eat('L')
+        data.eat('2L')
+        self.guid = data.eat('72s').decode('UTF-16LE').encode('utf-8')
+        data.eat('2L')
+        self.policy = data.eat('L')
+        self.masterkeyLen = data.eat('Q')
+        self.backupkeyLen = data.eat('Q')
+        self.credhistLen = data.eat('Q')
+        self.domainkeyLen = data.eat('Q')
 
         if self.masterkeyLen > 0:
             self.masterkey = MasterKey()
@@ -303,9 +295,10 @@ class MasterKeyFile(eater.DataStruct):
 
     def decryptWithPassword(self, userSID, pwd):
         """See MasterKey.decryptWithPassword()"""
-        for algo in ["sha1", "md4"]:
-            self.decryptWithHash(userSID, hashlib.new(algo, pwd.encode('UTF-16LE')).digest(), algo)
-            
+        for algo in ['SHA1', 'MD4']:
+            ## Dynamically import a class (from Crypto.Hash import MD4, SHA1)
+            oHashClass = getattr(__import__('Crypto.Hash', fromlist=[algo]), algo)
+            self.decryptWithKey(crypto.derivePwdHash(oHashClass.new(pwd.encode('UTF-16LE')).digest(), userSID))
             if self.decrypted: break
 
     def decryptWithKey(self, pwdhash):
@@ -341,35 +334,34 @@ class MasterKeyFile(eater.DataStruct):
         return self.masterkey.key
 
     def __repr__(self):
-        s = ["\n#### MasterKeyFile %s ####" % self.guid.decode()]
+        s = ['\n#### MasterKeyFile %s ####' % self.guid.decode()]
         if self.version is not None:
-            s.append("\tversion   = %#d" % self.version)
+            s.append('\tversion   = %#d' % self.version)
         if self.policy is not None:
-            s.append("\tPolicy    = %#x" % self.policy)
+            s.append('\tPolicy    = %#x' % self.policy)
         if self.masterkeyLen > 0:
-            s.append("\tMasterKey = %d" % self.masterkeyLen)
+            s.append('\tMasterKey = %d' % self.masterkeyLen)
         if self.backupkeyLen > 0:
-            s.append("\tBackupKey = %d" % self.backupkeyLen)
+            s.append('\tBackupKey = %d' % self.backupkeyLen)
         if self.credhistLen > 0:
-            s.append("\tCredHist  = %d" % self.credhistLen)
+            s.append('\tCredHist  = %d' % self.credhistLen)
         if self.domainkeyLen > 0:
-            s.append("\tDomainKey = %d" % self.domainkeyLen)
+            s.append('\tDomainKey = %d' % self.domainkeyLen)
         if self.masterkey:
-            s.append("    + Master Key: %s" % repr(self.masterkey))
+            s.append('    + Master Key: %s' % repr(self.masterkey))
         if self.backupkey:
-            s.append("    + Backup Key: %s" % repr(self.backupkey))
+            s.append('    + Backup Key: %s' % repr(self.backupkey))
         if self.credhist:
-            s.append("    + %s" % repr(self.credhist))
+            s.append('    + %s' % repr(self.credhist))
         if self.domainkey:
-            s.append("    + %s" % repr(self.domainkey))
-        return "\n".join(s)
+            s.append('    + %s' % repr(self.domainkey))
+        return '\n'.join(s)
 
 
 class MasterKeyPool(object):
     """This class is the pivot for using DPAPIck. It manages all the DPAPI
     structures and contains all the decryption intelligence.
     """
-
     def __init__(self):
         self.keys = defaultdict(lambda: [])
         self.creds = {}
@@ -420,7 +412,7 @@ class MasterKeyPool(object):
         directory is a string representing the directory path to add.
         """
         for k in os.listdir(directory):
-            if re.match("^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$", k, re.IGNORECASE):
+            if re.match('^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$', k, re.IGNORECASE):
                 try:
                     with open(os.path.join(directory, k), 'rb') as f:
                         self.addMasterKey(f.read())
@@ -435,13 +427,13 @@ class MasterKeyPool(object):
 
     def __getstate__(self):
         d = dict(self.__dict__)
-        d["keys"] = dict(d["keys"])
+        d['keys'] = dict(d['keys'])
         return d
 
     def __setstate__(self, d):
-        tmp = dict(d["keys"])
-        d["keys"] = defaultdict(lambda: [])
-        d["keys"].update(tmp)
+        tmp = dict(d['keys'])
+        d['keys'] = defaultdict(lambda: [])
+        d['keys'].update(tmp)
         self.__dict__.update(d)
 
     @staticmethod
@@ -450,7 +442,7 @@ class MasterKeyPool(object):
             return pickle.loads(data)
         if filename is not None:
             return pickle.load(filename)
-        raise ValueError("must provide either data or filename argument")
+        raise ValueError('[-] Must provide either data or filename argument')
 
     def try_credential_hash(self, userSID, pwdhash):
         n = 0
@@ -463,7 +455,8 @@ class MasterKeyPool(object):
                             # process CREDHIST
                             self.creds[userSID].decryptWithHash(pwdhash)
                             for cred in self.creds[userSID].entries_list:
-                                mk.decryptWithHash(userSID, cred.pwdhash)
+                                if cred.pwdhash is not None and not mk.decrypted:
+                                    mk.decryptWithHash(userSID, cred.pwdhash)
                                 if cred.ntlm is not None and not mk.decrypted:
                                     mk.decryptWithHash(userSID, cred.ntlm)
                                 if mk.decrypted:
@@ -493,7 +486,6 @@ class MasterKeyPool(object):
 
         Returns the number of masterkey that has been successfully decrypted
         with those credentials.
-
         """
         n = 0
         for mkl in list(self.keys.values()):
@@ -549,11 +541,11 @@ class MasterKeyPool(object):
         s = ['MasterKeyPool:', 'Passwords:', repr(self.passwords), 'Keys:', repr(list(self.keys.items()))]
         if self.system is not None:
             s.append(repr(self.system))
-        s.append("CredHist entries:")
+        s.append('CredHist entries:')
         #for i in self.creds.keys():
         for i in list(self.creds.keys()):
-            s.append("\tSID: %s" % i)
+            s.append('\tSID: %s' % i)
             s.append(repr(self.creds[i]))
-        return "\n".join(s)
+        return '\n'.join(s)
 
 # vim:ts=4:expandtab:sw=4

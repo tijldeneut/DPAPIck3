@@ -23,5 +23,5 @@ Furthermore only python-registry for some scripts
 AUTHOR
 ------
 DPAPIck3 is written by Jean-Michel Picod (jean-michel.picod@cassidian.com) with the help from Ivan Fontarensky (ivan.fontarensky@cassidian.com)  
-who work for the Cyber Security Center of Cassidian, an EADS company, and Elie Bursztein (dpapi@elie.im)  
+who works for the Cyber Security Center of Cassidian, an EADS company, and Elie Bursztein (dpapi@elie.im)  
 And adjusted for Python3 and Windows by Photubias (info@insecurity.be)

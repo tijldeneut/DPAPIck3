@@ -8,7 +8,7 @@
 ##                                                                         ##
 ##                                                                         ##
 ## Copyright (C) 2010, 2011 Cassidian SAS. All rights reserved.            ##
-## Copyright (C) 2023       Insecurity. All rights reserved.               ##
+## Copyright (C) 2025       Insecurity. All rights reserved.               ##
 ##                                                                         ##
 ##  Author:  Jean-Michel Picod <jmichel.p@gmail.com>                       ##
 ##  Updated: Photubias <info@insecurity.be>                                ##
@@ -17,7 +17,8 @@
 ##                                                                         ##
 #############################################################################
 
-import struct,  hashlib
+import struct
+from Crypto.Hash import SHA1
 import dpapick3.crypto as crypto
 import dpapick3.eater as eater
 
@@ -30,15 +31,15 @@ class RPC_SID(eater.DataStruct):
         eater.DataStruct.__init__(self, raw)
 
     def parse(self, data):
-        self.version = data.eat("B")
-        n = data.eat("B")
-        self.idAuth = struct.unpack(">Q", b'\0\0' + data.eat("6s"))[0]
-        self.subAuth = data.eat("%dL" % n)
+        self.version = data.eat('B')
+        n = data.eat('B')
+        self.idAuth = struct.unpack('>Q', b'\0\0' + data.eat('6s'))[0]
+        self.subAuth = data.eat('%dL' % n)
 
     def __str__(self):
-        s = ["S-%d-%d" % (self.version, self.idAuth)]
-        s += ["%d" % x for x in self.subAuth]
-        return "-".join(s)
+        s = ['S-%d-%d' % (self.version, self.idAuth)]
+        s += ['%d' % x for x in self.subAuth]
+        return '-'.join(s)
 
     def __repr__(self):
         return """RPC_SID(%s):
@@ -54,7 +55,6 @@ class CredSystem(eater.DataStruct):
         Sets 2 properties:
             self.machine
             self.user
-
     """
     def __init__(self, raw=None):
         self.machine = None
@@ -63,17 +63,17 @@ class CredSystem(eater.DataStruct):
         eater.DataStruct.__init__(self, raw)
 
     def parse(self, data):
-        self.revision = data.eat("L")
-        self.machine = data.eat("20s")
-        self.user = data.eat("20s")
+        self.revision = data.eat('L')
+        self.machine = data.eat('20s')
+        self.user = data.eat('20s')
 
     def __repr__(self):
-        s = ["DPAPI_SYSTEM:"]
+        s = ['DPAPI_SYSTEM:']
         if self.user is not None:
-            s.append("\tUser Credential   : %s" % self.user.hex())
+            s.append('\tUser Credential   : %s' % self.user.hex())
         if self.machine is not None:
-            s.append("\tMachine Credential: %s" % self.machine.hex())
-        return "\n".join(s)
+            s.append('\tMachine Credential: %s' % self.machine.hex())
+        return '\n'.join(s)
 
 
 class CredhistEntry(eater.DataStruct):
@@ -97,26 +97,26 @@ class CredhistEntry(eater.DataStruct):
 
     def __getstate__(self):
         d = dict(self.__dict__)
-        for k in ["cipherAlgo", "hashAlgo"]:
+        for k in ['cipherAlgo', 'hashAlgo']:
             if k in d:
                 d[k] = d[k].algnum
         return d
 
     def __setstate__(self, d):
-        for k in ["cipherAlgo", "hashAlgo"]:
+        for k in ['cipherAlgo', 'hashAlgo']:
             if k in d:
                 d[k] = crypto.CryptoAlgo(d[k])
         self.__dict__.update(d)
 
     def parse(self, data):
-        self.revision = data.eat("L")
-        self.hashAlgo = crypto.CryptoAlgo(data.eat("L"))
-        self.rounds = data.eat("L")
-        data.eat("L")
-        self.cipherAlgo = crypto.CryptoAlgo(data.eat("L"))
-        self.shaHashLen = data.eat("L")
-        self.ntHashLen = data.eat("L")
-        self.iv = data.eat("16s")
+        self.revision = data.eat('L')
+        self.hashAlgo = crypto.CryptoAlgo(data.eat('L'))
+        self.rounds = data.eat('L')
+        data.eat('L')
+        self.cipherAlgo = crypto.CryptoAlgo(data.eat('L'))
+        self.shaHashLen = data.eat('L')
+        self.ntHashLen = data.eat('L')
+        self.iv = data.eat('16s')
 
         self.userSID = RPC_SID()
         self.userSID.parse(data)
@@ -125,8 +125,8 @@ class CredhistEntry(eater.DataStruct):
         n += -n % self.cipherAlgo.blockSize
         self.encrypted = data.eat_string(n)
 
-        self.revision2 = data.eat("L")
-        self.guid = "%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x" % data.eat("L2H8B")
+        self.revision2 = data.eat('L')
+        self.guid = '%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x' % data.eat('L2H8B')
 
     def decryptWithKey(self, enckey):
         """Decrypts this credhist entry using the given encryption key."""
@@ -142,16 +142,14 @@ class CredhistEntry(eater.DataStruct):
         """Decrypts this credhist entry with the given user's password hash.
         Simply computes the encryption key with the given hash then calls
         self.decryptWithKey() to finish the decryption.
-
         """
         self.decryptWithKey(crypto.derivePwdHash(pwdhash, str(self.userSID)))
 
     def decryptWithPassword(self, password):
         """Decrypts this credhist entry with the given user's password.
         Simply computes the password hash then calls self.decryptWithHash()
-
         """
-        return self.decryptWithHash(hashlib.sha1(password.encode("UTF-16LE")).digest())
+        return self.decryptWithHash(SHA1.new(password.encode('UTF-16LE')).digest())
 
     def jtr_shadow(self):
         """Returns a string that can be passed to John the Ripper to crack this
@@ -165,27 +163,27 @@ class CredhistEntry(eater.DataStruct):
         """
         rv = []
         if self.pwdhash is not None:
-            rv.append("%s:$dynamic_1400$%s" % (self.userSID, self.pwdhash.hex()))
+            rv.append('%s:$dynamic_1400$%s' % (self.userSID, self.pwdhash.hex()))
         if self.ntlm is not None:
-            rv.append("%s:$NT$%s" % (self.userSID, self.ntlm.hex()))
-        return "\n".join(rv)
+            rv.append('%s:$NT$%s' % (self.userSID, self.ntlm.hex()))
+        return '\n'.join(rv)
 
     def __repr__(self):
-        s = ["CredHist entry",
-             "\trevision    = %x" % self.revision,
-             "\thash        = %r" % self.hashAlgo,
-             "\trounds      = %i" % self.rounds,
-             "\tcipher      = %r" % self.cipherAlgo,
-             "\tshaHashLen  = %i" % self.shaHashLen,
-             "\tntHashLen   = %i" % self.ntHashLen,
-             "\tuserSID     = %s" % self.userSID,
-             "\tguid        = %s" % self.guid,
-             "\tiv          = %s" % self.iv.hex()]
+        s = ['CredHist entry',
+             '\trevision    = %x' % self.revision,
+             '\thash        = %r' % self.hashAlgo,
+             '\trounds      = %i' % self.rounds,
+             '\tcipher      = %r' % self.cipherAlgo,
+             '\tshaHashLen  = %i' % self.shaHashLen,
+             '\tntHashLen   = %i' % self.ntHashLen,
+             '\tuserSID     = %s' % self.userSID,
+             '\tguid        = %s' % self.guid,
+             '\tiv          = %s' % self.iv.hex()]
         if self.pwdhash is not None:
-            s.append("\t[+] pwdhash = %s" % self.pwdhash.hex())
+            s.append('\t[+] pwdhash = %s' % self.pwdhash.hex())
         if self.ntlm is not None:
-            s.append("\t[+] NTLM    = %s" % self.ntlm.hex())
-        return "\n".join(s)
+            s.append('\t[+] NTLM    = %s' % self.ntlm.hex())
+        return '\n'.join(s)
 
 
 class CredHistFile(eater.DataStruct):
@@ -194,7 +192,6 @@ class CredHistFile(eater.DataStruct):
     succeeded or not. To circumvent that and optimize a little bit crypto
     operations, once a credhist entry successfully decrypts a masterkey, the
     whole CredHistFile is flagged as valid. Then, no further decryption occurs.
-
     """
     def __init__(self, raw=None):
         self.entries_list = []
@@ -206,13 +203,12 @@ class CredHistFile(eater.DataStruct):
 
     def parse(self, data):
         while True:
-            l = data.pop("L")
-            if l == 0:
-                break
+            l = data.pop('L')
+            if l == 0: break
             self.addEntry(data.pop_string(l - 4))
 
-        self.footmagic = data.eat("L")
-        self.curr_guid = "%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x" % data.eat("L2H8B")
+        self.footmagic = data.eat('L')
+        self.curr_guid = '%0x-%0x-%0x-%0x%0x-%0x%0x%0x%0x%0x%0x' % data.eat('L2H8B')
 
     def addEntry(self, blob):
         """Creates a CredhistEntry object with blob then adds it to the store"""
@@ -223,7 +219,6 @@ class CredHistFile(eater.DataStruct):
     def validate(self):
         """Simply flags a file as successfully decrypted. See the class
         documentation for information.
-
         """
         self.valid = True
 
@@ -241,7 +236,7 @@ class CredHistFile(eater.DataStruct):
         calls self.decryptWithHash()
 
         """
-        return self.decryptWithHash(hashlib.sha1(pwd.encode("UTF-16LE")).digest())
+        return self.decryptWithHash(SHA1.new(pwd.encode('UTF-16LE')).digest())
 
     def jtr_shadow(self, validonly=False):
         """Returns a string that can be passed to John the Ripper to crack the
@@ -251,22 +246,21 @@ class CredHistFile(eater.DataStruct):
             If validonly is set to True, will only extract CREDHIST entries
             that are known to have sucessfully decrypted a masterkey.
         """
-        if validonly and not self.valid:
-            return ""
+        if validonly and not self.valid: return ''
         s = []
         #for e in self.entries.itervalues():
         for e in list(self.entries.values()):
             s.append(e.jtr_shadow())
-        return "\n".join(s)
+        return '\n'.join(s)
 
     def __repr__(self):
-        s = ["CredHistPool:  %s" % self.curr_guid]
+        s = ['CredHistPool:  %s' % self.curr_guid]
         #for e in self.entries.itervalues():
         for e in list(self.entries.values()):
-            s.append("---")
+            s.append('---')
             s.append(repr(e))
-        s.append("====")
-        return "\n".join(s)
+        s.append('====')
+        return '\n'.join(s)
 
 
 # vim:ts=4:expandtab:sw=4
